@@ -287,6 +287,40 @@
     .sort-select:focus { border-color: var(--light-blue); }
 
     /* ========================================
+       VIEW TOGGLE
+    ======================================== */
+    .view-toggle {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      background: var(--bg-card);
+      border: 1.5px solid var(--border-light);
+      border-radius: var(--radius-sm);
+      padding: 3px;
+    }
+
+    .view-btn {
+      width: 34px;
+      height: 34px;
+      border: none;
+      border-radius: 6px;
+      background: transparent;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-tertiary);
+      transition: all var(--transition-fast);
+    }
+
+    .view-btn:hover { color: var(--text-secondary); background: var(--bg-primary); }
+
+    .view-btn.active {
+      background: var(--dark-blue);
+      color: #FFFFFF;
+    }
+
+    /* ========================================
        CAMPAIGN LIST
     ======================================== */
     .main-content {
@@ -301,8 +335,15 @@
       gap: 8px;
     }
 
+    /* Grid mode */
+    .campaign-list.view-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
     /* ========================================
-       CAMPAIGN CARD
+       CAMPAIGN CARD — List mode (default)
     ======================================== */
     .campaign-card {
       background: var(--bg-card);
@@ -411,6 +452,82 @@
     }
 
     .campaign-card:hover .card-arrow { color: var(--light-blue); transform: translateX(2px); }
+
+    /* ========================================
+       CAMPAIGN CARD — Grid mode overrides
+    ======================================== */
+    .view-grid .campaign-card {
+      flex-direction: column;
+      align-items: flex-start;
+      padding: 20px;
+      gap: 14px;
+      min-height: 160px;
+    }
+
+    .view-grid .card-status-bar {
+      width: 32px;
+      height: 4px;
+      border-radius: 4px;
+    }
+
+    .view-grid .card-body {
+      flex: 1;
+      width: 100%;
+    }
+
+    .view-grid .card-name {
+      font-size: 15px;
+      white-space: normal;
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      margin-bottom: 8px;
+    }
+
+    .view-grid .card-right {
+      width: 100%;
+      justify-content: space-between;
+      padding-top: 12px;
+      border-top: 1px solid var(--border-light);
+    }
+
+    .view-grid .card-arrow { display: none; }
+
+    /* ========================================
+       LOAD MORE BUTTON
+    ======================================== */
+    .load-more-container {
+      text-align: center;
+      padding: 24px 0 8px;
+    }
+
+    .load-more-btn {
+      height: 44px;
+      padding: 0 32px;
+      border: 1.5px solid var(--border-light);
+      border-radius: var(--radius-pill);
+      background: var(--bg-card);
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+
+    .load-more-btn:hover {
+      border-color: var(--light-blue);
+      color: var(--light-blue);
+      background: #F0F9FF;
+    }
+
+    .load-more-info {
+      font-size: 12px;
+      color: var(--text-tertiary);
+      margin-top: 8px;
+    }
 
     /* ========================================
        DRAWER OVERLAY & PANEL
@@ -743,6 +860,10 @@
     /* ========================================
        RESPONSIVE
     ======================================== */
+    @media (max-width: 1100px) {
+      .campaign-list.view-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
     @media (max-width: 768px) {
       .header-inner { padding: 0 16px; }
       .header-meta { display: none; }
@@ -756,6 +877,7 @@
       .drawer-header { padding: 20px; }
       .drawer-body { padding: 20px; }
       .card-right .link-count { display: none; }
+      .campaign-list.view-grid { grid-template-columns: 1fr; }
     }
 
     /* ========================================
@@ -815,6 +937,14 @@
         <option value="az">A → Z</option>
         <option value="za">Z → A</option>
       </select>
+      <div class="view-toggle" id="viewToggle">
+        <button class="view-btn active" data-view="grid" aria-label="Grid view">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        </button>
+        <button class="view-btn" data-view="list" aria-label="List view">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        </button>
+      </div>
     </div>
   </div>
 
@@ -869,6 +999,8 @@
     let currentSort = 'newest';
     let currentSearch = '';
     let selectedIndex = -1;
+    let viewMode = 'grid';
+    let visibleCount = 12;
 
     /* =========================================================
        DOM REFS
@@ -887,27 +1019,28 @@
     const $drawerBody = document.getElementById('drawerBody');
     const $totalCount = document.getElementById('totalCount');
     const $kbdHint = document.getElementById('kbdHint');
+    const $viewToggle = document.getElementById('viewToggle');
 
     /* =========================================================
        ICON & COLOUR MAPPING FOR KNOWN COLUMN TYPES
     ========================================================= */
-    const COLUMN_META = {
-      'landing page prototype': { icon: '⚡', label: 'LP Prototype', cls: 'icon-github' },
-      'campaign proposal': { icon: '📄', label: 'Campaign Proposal', cls: 'icon-gdoc' },
-      'draft t&c': { icon: '📝', label: 'Draft T&C', cls: 'icon-gdoc' },
-      'jira ticket': { icon: '🎫', label: 'Jira Ticket', cls: 'icon-jira' },
-      'landing page brief': { icon: '📋', label: 'LP Brief', cls: 'icon-gsheet' },
-      'figma link': { icon: '🎨', label: 'Figma Design', cls: 'icon-figma' },
-      'approved terms & condition': { icon: '✅', label: 'Approved T&C', cls: 'icon-sharepoint' },
-      'email journey': { icon: '✉️', label: 'Email Journey', cls: 'icon-email' },
-      'landing page url': { icon: '🌐', label: 'Live Landing Page', cls: 'icon-web' },
+    const COLUMN_ICONS = {
+      'landing page prototype': { icon: '⚡', cls: 'icon-github' },
+      'campaign proposal': { icon: '📄', cls: 'icon-gdoc' },
+      'draft t&c': { icon: '📝', cls: 'icon-gdoc' },
+      'jira ticket': { icon: '🎫', cls: 'icon-jira' },
+      'landing page brief': { icon: '📋', cls: 'icon-gsheet' },
+      'figma link': { icon: '🎨', cls: 'icon-figma' },
+      'approved terms & condition': { icon: '✅', cls: 'icon-sharepoint' },
+      'email journey': { icon: '✉️', cls: 'icon-email' },
+      'landing page url': { icon: '🌐', cls: 'icon-web' },
     };
 
     function getColumnMeta(header) {
       const key = header.toLowerCase().trim();
-      if (COLUMN_META[key]) return COLUMN_META[key];
-      // Fallback for future/unknown columns
-      return { icon: '🔗', label: header, cls: 'icon-default' };
+      const iconData = COLUMN_ICONS[key] || { icon: '🔗', cls: 'icon-default' };
+      // Always use the exact column header from the sheet as the label
+      return { icon: iconData.icon, label: header, cls: iconData.cls };
     }
 
     /* =========================================================
@@ -1122,9 +1255,13 @@
     function renderList() {
       const campaigns = getFilteredCampaigns();
 
+      // Apply view mode class
+      $list.classList.remove('view-grid', 'view-list');
+      $list.classList.add(viewMode === 'grid' ? 'view-grid' : 'view-list');
+
       if (!campaigns.length) {
         $list.innerHTML = `
-          <div class="empty-state">
+          <div class="empty-state" style="${viewMode === 'grid' ? 'grid-column: 1 / -1;' : ''}">
             <div class="empty-icon">
               <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             </div>
@@ -1134,7 +1271,10 @@
         return;
       }
 
-      $list.innerHTML = campaigns.map((c, i) => {
+      const visible = campaigns.slice(0, visibleCount);
+      const remaining = campaigns.length - visible.length;
+
+      const cardsHtml = visible.map((c, i) => {
         const name = c['Name'] || 'Untitled Campaign';
         const status = c._status;
         const start = formatDate(c._startDate);
@@ -1164,6 +1304,23 @@
             </div>
           </div>`;
       }).join('');
+
+      const loadMoreHtml = remaining > 0 ? `
+        <div class="load-more-container" style="${viewMode === 'grid' ? 'grid-column: 1 / -1;' : ''}">
+          <button class="load-more-btn" onclick="loadMore()">Show more campaigns</button>
+          <div class="load-more-info">Showing ${visible.length} of ${campaigns.length} campaigns</div>
+        </div>` : '';
+
+      $list.innerHTML = cardsHtml + loadMoreHtml;
+    }
+
+    function loadMore() {
+      visibleCount += 12;
+      renderList();
+    }
+
+    function resetPagination() {
+      visibleCount = 12;
     }
 
     function escHtml(str) {
@@ -1197,7 +1354,15 @@
           <span class="status-badge-dot"></span>
           ${status.charAt(0).toUpperCase() + status.slice(1)}
         </span>`;
-      $drawerDateText.textContent = dateStr;
+      let dateHtml = '';
+      if (start && end) {
+        dateHtml = `<strong>Campaign Start:</strong> ${start} &nbsp;—&nbsp; <strong>Campaign End:</strong> ${end}`;
+      } else if (start) {
+        dateHtml = `<strong>Campaign Start:</strong> ${start}`;
+      } else if (end) {
+        dateHtml = `<strong>Campaign End:</strong> ${end}`;
+      }
+      $drawerDateText.innerHTML = dateHtml;
       $drawerDates.style.display = (start || end) ? 'flex' : 'none';
 
       // Build drawer body: separate links from text fields
@@ -1283,6 +1448,7 @@
       clearTimeout(searchTimeout);
       searchTimeout = setTimeout(() => {
         currentSearch = $search.value.trim();
+        resetPagination();
         renderList();
       }, 200);
     });
@@ -1294,12 +1460,24 @@
       document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
       tab.classList.add('active');
       currentFilter = tab.dataset.filter;
+      resetPagination();
       renderList();
     });
 
     // Sort
     $sort.addEventListener('change', () => {
       currentSort = $sort.value;
+      resetPagination();
+      renderList();
+    });
+
+    // View toggle
+    $viewToggle.addEventListener('click', (e) => {
+      const btn = e.target.closest('.view-btn');
+      if (!btn) return;
+      document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      viewMode = btn.dataset.view;
       renderList();
     });
 

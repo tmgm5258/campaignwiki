@@ -6,7 +6,7 @@
   <title>TMGM Campaign Wiki</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  
   <style>
     /* ========================================
        CSS VARIABLES — TMGM BRAND
@@ -859,7 +859,7 @@
     /* =========================================================
        CONFIG — Update these values for your setup
     ========================================================= */
-    const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR903iZWoaqJiSppnvnD6AnmJay400woaWxXFCEbxIoM5p9Hzs6IiYgixFSP34743M9LauxPBOoCf0q/pub?gid=0&single=true&output=csv';
+    const SHEET_ID = '1VHOaiGVIM-Jow67ilNch7JLrU4o28x9ZONtq6lrflPA';
 
     /* =========================================================
        STATE
@@ -946,24 +946,93 @@
     /* =========================================================
        FETCH & PARSE
     ========================================================= */
-    function processCsvText(csvText) {
-      const results = Papa.parse(csvText, {
-        header: true,
-        skipEmptyLines: 'greedy',
-      });
+    /* =========================================================
+       FETCH DATA VIA JSONP — Bypasses CORS completely
+       Uses Google Visualization API with script tag injection
+    ========================================================= */
+    function fetchCampaigns() {
+      $list.innerHTML = `
+        <div class="loading-state">
+          <div class="loading-spinner"></div>
+          <div class="loading-text">Fetching campaigns from Google Sheets...</div>
+        </div>`;
 
-      if (results.errors.length && !results.data.length) {
-        showError('Could not parse the spreadsheet data. Check the sheet format.');
-        return;
-      }
+      const callbackName = 'gsheetCallback_' + Date.now();
+      const timeoutMs = 10000;
 
+      // Set up timeout
+      const timer = setTimeout(() => {
+        if (window[callbackName]) {
+          delete window[callbackName];
+          console.log('JSONP request timed out');
+          showError('Request timed out. Please check:<br><br><strong>1.</strong> Open Google Sheet → click <strong>Share</strong> → set "General access" to <strong>"Anyone with the link" → Viewer</strong><br><br><strong>2.</strong> Also ensure <strong>File → Share → Publish to web</strong> is active<br><br>After changing, wait 1 minute then click Retry.');
+        }
+      }, timeoutMs);
+
+      // Define the callback that Google will invoke
+      window[callbackName] = function(response) {
+        clearTimeout(timer);
+        delete window[callbackName];
+        // Remove script tag
+        const s = document.getElementById('gsheet-jsonp');
+        if (s) s.remove();
+
+        console.log('JSONP response received:', response.status);
+
+        if (response.status === 'error') {
+          showError('Google Sheets returned an error: ' + (response.errors?.[0]?.detailed_message || 'Unknown error') + '<br><br>Make sure the sheet is shared as "Anyone with the link" → Viewer.');
+          return;
+        }
+
+        try {
+          const table = response.table;
+          const headers = table.cols.map(col => col.label || col.id);
+          console.log('Headers found:', headers);
+
+          const rows = table.rows.map(row => {
+            const obj = {};
+            if (row.c) {
+              row.c.forEach((cell, i) => {
+                if (i >= headers.length || !headers[i]) return;
+                if (cell && cell.v !== null && cell.v !== undefined) {
+                  // Prefer formatted value (dates, etc.), fallback to raw value as string
+                  obj[headers[i]] = String(cell.f || cell.v);
+                } else {
+                  obj[headers[i]] = '';
+                }
+              });
+            }
+            return obj;
+          });
+
+          processData(rows);
+        } catch (e) {
+          console.error('Error parsing JSONP response:', e);
+          showError('Failed to parse spreadsheet data. Error: ' + e.message);
+        }
+      };
+
+      // Inject script tag — this bypasses CORS entirely
+      const script = document.createElement('script');
+      script.id = 'gsheet-jsonp';
+      script.src = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=responseHandler:${callbackName}&sheet=Sheet1`;
+      script.onerror = function() {
+        clearTimeout(timer);
+        delete window[callbackName];
+        console.log('Script tag failed to load');
+        showError('Failed to connect to Google Sheets. Please check your internet connection and that the sheet is publicly shared.');
+      };
+      document.head.appendChild(script);
+    }
+
+    function processData(rows) {
       // Filter out completely empty rows
-      allCampaigns = results.data.filter(row => {
-        return Object.values(row).some(v => v && v.trim());
+      allCampaigns = rows.filter(row => {
+        return Object.values(row).some(v => v !== null && v !== undefined && String(v).trim() !== '');
       }).map((row, i) => {
         const clean = {};
         for (const [k, v] of Object.entries(row)) {
-          clean[k] = (v || '').trim();
+          clean[k] = (v === null || v === undefined) ? '' : String(v).trim();
         }
         clean._index = i;
         clean._status = getStatus(clean['Campaign Start'], clean['Campaign End']);
@@ -972,6 +1041,7 @@
         return clean;
       });
 
+      console.log('Campaigns loaded:', allCampaigns.length);
       $totalCount.textContent = allCampaigns.length;
       updateFilterCounts();
       renderList();
@@ -979,53 +1049,6 @@
       // Show keyboard hint briefly
       $kbdHint.classList.add('visible');
       setTimeout(() => $kbdHint.classList.remove('visible'), 3500);
-    }
-
-    function fetchWithTimeout(url, timeoutMs = 8000) {
-      return new Promise((resolve, reject) => {
-        const controller = new AbortController();
-        const timer = setTimeout(() => {
-          controller.abort();
-          reject(new Error('Request timed out'));
-        }, timeoutMs);
-
-        fetch(url, { signal: controller.signal })
-          .then(resp => { clearTimeout(timer); resolve(resp); })
-          .catch(err => { clearTimeout(timer); reject(err); });
-      });
-    }
-
-    async function fetchCampaigns() {
-      $list.innerHTML = `
-        <div class="loading-state">
-          <div class="loading-spinner"></div>
-          <div class="loading-text">Fetching campaigns from Google Sheets...</div>
-        </div>`;
-
-      const attempts = [
-        { name: 'direct', url: CSV_URL },
-        { name: 'corsproxy', url: 'https://corsproxy.io/?' + encodeURIComponent(CSV_URL) },
-        { name: 'allorigins', url: 'https://api.allorigins.win/raw?url=' + encodeURIComponent(CSV_URL) },
-      ];
-
-      for (const attempt of attempts) {
-        try {
-          console.log(`Trying ${attempt.name} fetch...`);
-          const resp = await fetchWithTimeout(attempt.url, 6000);
-          if (resp.ok) {
-            const text = await resp.text();
-            if (text && text.trim().length > 0) {
-              console.log(`Success via ${attempt.name}`);
-              processCsvText(text);
-              return;
-            }
-          }
-        } catch (e) {
-          console.log(`${attempt.name} failed: ${e.message}`);
-        }
-      }
-
-      showError('Failed to fetch the spreadsheet. This can happen when opening the file directly from your computer.<br><br><strong>Quick fix:</strong> Deploy this file to GitHub Pages — it will work immediately once hosted.<br><br><strong>For local testing:</strong> Use VS Code with the "Live Server" extension, or run <code>python3 -m http.server</code> in the folder and open <code>localhost:8000</code>.');
     }
 
     function showError(msg) {

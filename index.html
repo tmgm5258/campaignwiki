@@ -914,7 +914,7 @@
        DATE HELPERS
     ========================================================= */
     function parseDate(str) {
-      if (!str || !str.trim()) return null;
+      if (!str || typeof str !== 'string' || !str.trim()) return null;
       const d = new Date(str);
       return isNaN(d.getTime()) ? null : d;
     }
@@ -938,7 +938,7 @@
     }
 
     function isUrl(str) {
-      if (!str) return false;
+      if (!str || typeof str !== 'string') return false;
       const s = str.trim();
       return s.startsWith('http://') || s.startsWith('https://');
     }
@@ -1144,7 +1144,7 @@
         // Count how many link fields are filled
         const linkCount = Object.entries(c).filter(([k, v]) => {
           const kl = k.toLowerCase();
-          return v && isUrl(v) && kl !== 'name' && !kl.startsWith('_');
+          return kl !== 'name' && !kl.startsWith('_') && v && isUrl(v);
         }).length;
 
         return `
@@ -1207,7 +1207,8 @@
 
       for (const [key, val] of Object.entries(c)) {
         const kl = key.toLowerCase().trim();
-        if (skipKeys.has(kl) || kl.startsWith('_') || !val || !val.trim()) continue;
+        if (skipKeys.has(kl) || kl.startsWith('_')) continue;
+        if (!val || typeof val !== 'string' || !val.trim()) continue;
 
         if (isUrl(val)) {
           links.push({ key, val });

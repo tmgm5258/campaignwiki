@@ -98,38 +98,10 @@
       gap: 10px;
     }
 
-    .logo-mark {
-      width: 36px;
-      height: 36px;
-      background: linear-gradient(135deg, var(--light-blue), var(--bright-blue));
-      border-radius: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 800;
-      font-size: 14px;
-      color: var(--dark-blue);
-      letter-spacing: -0.5px;
-    }
-
-    .logo-text {
-      font-size: 18px;
-      font-weight: 700;
-      color: #FFFFFF;
-      letter-spacing: -0.3px;
-    }
-
-    .logo-divider {
-      width: 1px;
-      height: 28px;
-      background: rgba(255,255,255,0.15);
-    }
-
-    .header-title {
-      font-size: 14px;
-      font-weight: 500;
-      color: rgba(255,255,255,0.7);
-      letter-spacing: 0.3px;
+    .logo-img {
+      height: 32px;
+      width: auto;
+      object-fit: contain;
     }
 
     .header-meta {
@@ -149,27 +121,7 @@
       font-weight: 700;
     }
 
-    .sync-indicator {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 12px;
-      color: rgba(255,255,255,0.4);
-      font-weight: 500;
-    }
-
-    .sync-dot {
-      width: 7px;
-      height: 7px;
-      background: var(--green);
-      border-radius: 50%;
-      animation: pulse 2.5s ease-in-out infinite;
-    }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.5; transform: scale(0.85); }
-    }
+    
 
     /* ========================================
        TOOLBAR — Search, Filters, Sort
@@ -959,18 +911,11 @@
     <div class="header-inner">
       <div class="header-brand">
         <div class="header-logo">
-          <div class="logo-mark">TM</div>
-          <span class="logo-text">TMGM</span>
+          <img src="https://raw.githubusercontent.com/tmgm5258/raya_giveaway_promotion_malaysia_new_clients_lucky_draw/f22fd4df21954ebed6c4b1ebfceb4e539f79e616/download%20(1).png" alt="TMGM" class="logo-img">
         </div>
-        <div class="logo-divider"></div>
-        <span class="header-title">Campaign Wiki</span>
       </div>
       <div class="header-meta">
         <span class="campaign-count"><span id="totalCount">0</span> campaigns</span>
-        <div class="sync-indicator">
-          <div class="sync-dot"></div>
-          Live from Google Sheets
-        </div>
       </div>
     </div>
   </header>

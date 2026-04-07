@@ -553,8 +553,8 @@
       top: 0;
       right: 0;
       bottom: 0;
-      width: 520px;
-      max-width: 90vw;
+      width: 580px;
+      max-width: 92vw;
       background: var(--bg-card);
       z-index: 201;
       transform: translateX(100%);
@@ -642,6 +642,10 @@
       margin-bottom: 14px;
     }
 
+    .drawer-section-title:not(:first-child) {
+      margin-top: 28px;
+    }
+
     .drawer-links {
       display: flex;
       flex-direction: column;
@@ -701,34 +705,88 @@
     .icon-email { background: #FFE6F0; color: #DB2777; }
     .icon-default { background: var(--bg-primary); color: var(--text-secondary); }
 
-    /* Non-link text fields in drawer */
+    /* ========================================
+       DRAWER — Campaign Overview Blocks
+    ======================================== */
+    .drawer-overview-blocks {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .drawer-overview-block {
+      background: var(--bg-primary);
+      border-radius: var(--radius-md);
+      padding: 16px 18px;
+    }
+
+    .drawer-overview-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-tertiary);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin-bottom: 8px;
+    }
+
+    .drawer-overview-value {
+      font-size: 14px;
+      font-weight: 400;
+      color: var(--text-primary);
+      line-height: 1.65;
+      white-space: pre-line;
+    }
+
+    /* ========================================
+       DRAWER — Executive Summary
+    ======================================== */
+    .drawer-exec-summary {
+      background: linear-gradient(135deg, rgba(0,11,80,0.03), rgba(44,95,173,0.06));
+      border: 1.5px solid rgba(44,95,173,0.12);
+      border-radius: var(--radius-md);
+      padding: 18px 20px;
+    }
+
+    .drawer-exec-summary .drawer-overview-label {
+      color: var(--mid-blue);
+    }
+
+    .drawer-exec-summary .drawer-overview-value {
+      color: var(--text-primary);
+    }
+
+    /* ========================================
+       DRAWER — Other text fields (fallback)
+    ======================================== */
     .drawer-text-fields {
-      margin-top: 24px;
+      margin-top: 0;
     }
 
     .drawer-text-field {
       display: flex;
-      align-items: flex-start;
-      gap: 12px;
-      padding: 10px 0;
+      flex-direction: column;
+      gap: 6px;
+      padding: 12px 0;
       border-bottom: 1px solid var(--border-light);
     }
 
     .drawer-text-field:last-child { border-bottom: none; }
 
     .drawer-text-label {
-      font-size: 13px;
-      font-weight: 600;
+      font-size: 11px;
+      font-weight: 700;
       color: var(--text-tertiary);
-      min-width: 120px;
-      flex-shrink: 0;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
     }
 
     .drawer-text-value {
       font-size: 14px;
-      font-weight: 500;
+      font-weight: 400;
       color: var(--text-primary);
       word-break: break-word;
+      line-height: 1.6;
+      white-space: pre-line;
     }
 
     /* ========================================
@@ -987,7 +1045,7 @@
 
   <script>
     /* =========================================================
-       CONFIG — Update these values for your setup
+       CONFIG
     ========================================================= */
     const SHEET_ID = '1VHOaiGVIM-Jow67ilNch7JLrU4o28x9ZONtq6lrflPA';
 
@@ -1022,7 +1080,7 @@
     const $viewToggle = document.getElementById('viewToggle');
 
     /* =========================================================
-       ICON & COLOUR MAPPING FOR KNOWN COLUMN TYPES
+       ICON MAPPING FOR KNOWN LINK COLUMNS
     ========================================================= */
     const COLUMN_ICONS = {
       'landing page prototype': { icon: '⚡', cls: 'icon-github' },
@@ -1039,9 +1097,20 @@
     function getColumnMeta(header) {
       const key = header.toLowerCase().trim();
       const iconData = COLUMN_ICONS[key] || { icon: '🔗', cls: 'icon-default' };
-      // Always use the exact column header from the sheet as the label
       return { icon: iconData.icon, label: header, cls: iconData.cls };
     }
+
+    /* =========================================================
+       OVERVIEW FIELDS — displayed as stacked blocks in drawer
+       These are the "story" fields shown at the top
+    ========================================================= */
+    const OVERVIEW_FIELDS = new Set([
+      'mechanic',
+      'prize',
+      'period',
+    ]);
+
+    const EXEC_SUMMARY_FIELD = 'executive summary';
 
     /* =========================================================
        DATE HELPERS
@@ -1077,11 +1146,7 @@
     }
 
     /* =========================================================
-       FETCH & PARSE
-    ========================================================= */
-    /* =========================================================
-       FETCH DATA VIA JSONP — Bypasses CORS completely
-       Uses Google Visualization API with script tag injection
+       FETCH DATA VIA JSONP
     ========================================================= */
     function fetchCampaigns() {
       $list.innerHTML = `
@@ -1093,34 +1158,27 @@
       const callbackName = 'gsheetCallback_' + Date.now();
       const timeoutMs = 10000;
 
-      // Set up timeout
       const timer = setTimeout(() => {
         if (window[callbackName]) {
           delete window[callbackName];
-          console.log('JSONP request timed out');
-          showError('Request timed out. Please check:<br><br><strong>1.</strong> Open Google Sheet → click <strong>Share</strong> → set "General access" to <strong>"Anyone with the link" → Viewer</strong><br><br><strong>2.</strong> Also ensure <strong>File → Share → Publish to web</strong> is active<br><br>After changing, wait 1 minute then click Retry.');
+          showError('Request timed out. Please check that the sheet is shared as "Anyone with the link" → Viewer.');
         }
       }, timeoutMs);
 
-      // Define the callback that Google will invoke
       window[callbackName] = function(response) {
         clearTimeout(timer);
         delete window[callbackName];
-        // Remove script tag
         const s = document.getElementById('gsheet-jsonp');
         if (s) s.remove();
 
-        console.log('JSONP response received:', response.status);
-
         if (response.status === 'error') {
-          showError('Google Sheets returned an error: ' + (response.errors?.[0]?.detailed_message || 'Unknown error') + '<br><br>Make sure the sheet is shared as "Anyone with the link" → Viewer.');
+          showError('Google Sheets returned an error: ' + (response.errors?.[0]?.detailed_message || 'Unknown error'));
           return;
         }
 
         try {
           const table = response.table;
           const headers = table.cols.map(col => col.label || col.id);
-          console.log('Headers found:', headers);
 
           const rows = table.rows.map(row => {
             const obj = {};
@@ -1128,7 +1186,6 @@
               row.c.forEach((cell, i) => {
                 if (i >= headers.length || !headers[i]) return;
                 if (cell && cell.v !== null && cell.v !== undefined) {
-                  // Prefer formatted value (dates, etc.), fallback to raw value as string
                   obj[headers[i]] = String(cell.f || cell.v);
                 } else {
                   obj[headers[i]] = '';
@@ -1145,21 +1202,18 @@
         }
       };
 
-      // Inject script tag — this bypasses CORS entirely
       const script = document.createElement('script');
       script.id = 'gsheet-jsonp';
       script.src = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=responseHandler:${callbackName}&sheet=Sheet1`;
       script.onerror = function() {
         clearTimeout(timer);
         delete window[callbackName];
-        console.log('Script tag failed to load');
-        showError('Failed to connect to Google Sheets. Please check your internet connection and that the sheet is publicly shared.');
+        showError('Failed to connect to Google Sheets. Check your internet connection and that the sheet is publicly shared.');
       };
       document.head.appendChild(script);
     }
 
     function processData(rows) {
-      // Filter out completely empty rows
       allCampaigns = rows.filter(row => {
         return Object.values(row).some(v => v !== null && v !== undefined && String(v).trim() !== '');
       }).map((row, i) => {
@@ -1174,12 +1228,10 @@
         return clean;
       });
 
-      console.log('Campaigns loaded:', allCampaigns.length);
       $totalCount.textContent = allCampaigns.length;
       updateFilterCounts();
       renderList();
 
-      // Show keyboard hint briefly
       $kbdHint.classList.add('visible');
       setTimeout(() => $kbdHint.classList.remove('visible'), 3500);
     }
@@ -1202,12 +1254,10 @@
     function getFilteredCampaigns() {
       let list = [...allCampaigns];
 
-      // Filter by status
       if (currentFilter !== 'all') {
         list = list.filter(c => c._status === currentFilter);
       }
 
-      // Search
       if (currentSearch) {
         const q = currentSearch.toLowerCase();
         list = list.filter(c => {
@@ -1215,7 +1265,6 @@
         });
       }
 
-      // Sort
       switch (currentSort) {
         case 'newest':
           list.sort((a, b) => (b._startDate || new Date(0)) - (a._startDate || new Date(0)));
@@ -1255,7 +1304,6 @@
     function renderList() {
       const campaigns = getFilteredCampaigns();
 
-      // Apply view mode class
       $list.classList.remove('view-grid', 'view-list');
       $list.classList.add(viewMode === 'grid' ? 'view-grid' : 'view-list');
 
@@ -1281,7 +1329,6 @@
         const end = formatDate(c._endDate);
         const dateStr = start && end ? `${start} — ${end}` : start || end || 'No dates set';
 
-        // Count how many link fields are filled
         const linkCount = Object.entries(c).filter(([k, v]) => {
           const kl = k.toLowerCase();
           return kl !== 'name' && !kl.startsWith('_') && v && isUrl(v);
@@ -1330,14 +1377,16 @@
     }
 
     /* =========================================================
-       DRAWER
+       DRAWER — 3-section layout
+       1. Campaign Overview (Mechanic, Prize, Period)
+       2. Executive Summary (highlighted)
+       3. Resources & Links
     ========================================================= */
     function openDrawer(index) {
       const c = allCampaigns.find(x => x._index === index);
       if (!c) return;
       selectedIndex = index;
 
-      // Highlight selected card
       document.querySelectorAll('.campaign-card').forEach(el => {
         el.classList.toggle('active-card', parseInt(el.dataset.index) === index);
       });
@@ -1346,7 +1395,6 @@
       const status = c._status;
       const start = formatDate(c._startDate);
       const end = formatDate(c._endDate);
-      const dateStr = start && end ? `${start} — ${end}` : start || end || 'No dates set';
 
       $drawerName.textContent = name;
       $drawerBadge.innerHTML = `
@@ -1354,6 +1402,7 @@
           <span class="status-badge-dot"></span>
           ${status.charAt(0).toUpperCase() + status.slice(1)}
         </span>`;
+
       let dateHtml = '';
       if (start && end) {
         dateHtml = `<strong>Campaign Start:</strong> ${start} &nbsp;—&nbsp; <strong>Campaign End:</strong> ${end}`;
@@ -1365,25 +1414,72 @@
       $drawerDateText.innerHTML = dateHtml;
       $drawerDates.style.display = (start || end) ? 'flex' : 'none';
 
-      // Build drawer body: separate links from text fields
+      // Categorize all fields
       const skipKeys = new Set(['name', 'campaign start', 'campaign end', '_index', '_status', '_startdate', '_enddate']);
+      const overviewItems = [];
+      const execSummary = { key: '', val: '' };
       const links = [];
-      const textFields = [];
+      const otherTextFields = [];
 
       for (const [key, val] of Object.entries(c)) {
         const kl = key.toLowerCase().trim();
         if (skipKeys.has(kl) || kl.startsWith('_')) continue;
         if (!val || typeof val !== 'string' || !val.trim()) continue;
 
-        if (isUrl(val)) {
+        if (OVERVIEW_FIELDS.has(kl)) {
+          overviewItems.push({ key, val });
+        } else if (kl === EXEC_SUMMARY_FIELD) {
+          execSummary.key = key;
+          execSummary.val = val;
+        } else if (isUrl(val)) {
           links.push({ key, val });
         } else {
-          textFields.push({ key, val });
+          otherTextFields.push({ key, val });
         }
       }
 
+      // Build drawer HTML in 3 sections
       let html = '';
 
+      // SECTION 1: Campaign Overview
+      if (overviewItems.length) {
+        html += `<div class="drawer-section-title">Campaign Overview</div>`;
+        html += `<div class="drawer-overview-blocks">`;
+        overviewItems.forEach(({ key, val }) => {
+          html += `
+            <div class="drawer-overview-block">
+              <div class="drawer-overview-label">${escHtml(key)}</div>
+              <div class="drawer-overview-value">${escHtml(val)}</div>
+            </div>`;
+        });
+        html += `</div>`;
+      }
+
+      // SECTION 2: Executive Summary
+      if (execSummary.val) {
+        html += `<div class="drawer-section-title">Executive Summary</div>`;
+        html += `
+          <div class="drawer-exec-summary">
+            <div class="drawer-overview-label">${escHtml(execSummary.key)}</div>
+            <div class="drawer-overview-value">${escHtml(execSummary.val)}</div>
+          </div>`;
+      }
+
+      // Other text fields (future-proof — any non-link, non-overview, non-summary text columns)
+      if (otherTextFields.length) {
+        html += `<div class="drawer-section-title">Details</div>`;
+        html += `<div class="drawer-text-fields">`;
+        otherTextFields.forEach(({ key, val }) => {
+          html += `
+            <div class="drawer-text-field">
+              <span class="drawer-text-label">${escHtml(key)}</span>
+              <span class="drawer-text-value">${escHtml(val)}</span>
+            </div>`;
+        });
+        html += `</div>`;
+      }
+
+      // SECTION 3: Resources & Links
       if (links.length) {
         html += `<div class="drawer-section-title">Resources & Links</div>`;
         html += `<div class="drawer-links">`;
@@ -1399,20 +1495,8 @@
         html += `</div>`;
       }
 
-      if (textFields.length) {
-        html += `<div class="drawer-text-fields">`;
-        html += `<div class="drawer-section-title">Details</div>`;
-        textFields.forEach(({ key, val }) => {
-          html += `
-            <div class="drawer-text-field">
-              <span class="drawer-text-label">${escHtml(key)}</span>
-              <span class="drawer-text-value">${escHtml(val)}</span>
-            </div>`;
-        });
-        html += `</div>`;
-      }
-
-      if (!links.length && !textFields.length) {
+      // Empty state
+      if (!overviewItems.length && !execSummary.val && !links.length && !otherTextFields.length) {
         html = `
           <div class="empty-state" style="padding: 40px 0;">
             <div class="empty-icon">
@@ -1425,7 +1509,6 @@
 
       $drawerBody.innerHTML = html;
 
-      // Open
       $drawer.classList.add('open');
       $overlay.classList.add('open');
       document.body.style.overflow = 'hidden';
@@ -1442,7 +1525,6 @@
     /* =========================================================
        EVENT LISTENERS
     ========================================================= */
-    // Search
     let searchTimeout;
     $search.addEventListener('input', () => {
       clearTimeout(searchTimeout);
@@ -1453,7 +1535,6 @@
       }, 200);
     });
 
-    // Filter tabs
     $filterTabs.addEventListener('click', (e) => {
       const tab = e.target.closest('.filter-tab');
       if (!tab) return;
@@ -1464,14 +1545,12 @@
       renderList();
     });
 
-    // Sort
     $sort.addEventListener('change', () => {
       currentSort = $sort.value;
       resetPagination();
       renderList();
     });
 
-    // View toggle
     $viewToggle.addEventListener('click', (e) => {
       const btn = e.target.closest('.view-btn');
       if (!btn) return;
@@ -1481,11 +1560,9 @@
       renderList();
     });
 
-    // Drawer close
     $drawerClose.addEventListener('click', closeDrawer);
     $overlay.addEventListener('click', closeDrawer);
 
-    // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') closeDrawer();
       if (e.key === '/' && document.activeElement !== $search) {
